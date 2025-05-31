@@ -1,0 +1,20 @@
+# Dockerfile.dev
+FROM node:18-alpine
+
+# 1. Enable corepack & pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# 2. Copy lockfiles & install ALL deps (incl. dev)
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# 3. Copy source
+COPY . .
+
+# 4. Expose port
+EXPOSE 3000
+
+# 5. Start in watch mode via local CLI
+CMD ["pnpm", "run", "start:dev"]

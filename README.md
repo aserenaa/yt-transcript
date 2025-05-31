@@ -1,98 +1,138 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# YouTube Transcription API Guide
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A comprehensive guide for building an API that fetches video transcripts from YouTube links or playlists, leveraging official caption tracks and optional Speech-to-Text fallback.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 1. High-Level Architecture
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ pnpm install
+```
+Client → API Gateway → Transcription Service → YouTube Data API / Speech-to-Text → API → Client
+                     ↓
+                   Cache (Redis)
+                     ↓
+                Persistent Store (PostgreSQL)
 ```
 
-## Compile and run the project
+- **API Gateway**: Exposes REST endpoints (e.g., via NestJS or Express).
+- **Transcription Service**: Core logic for retrieving or generating transcripts.
+- **YouTube Data API v3**: `captions.list` & `captions.download` methods for official tracks.
+- **Speech-to-Text API** (optional): Fallback when no captions exist.
+- **Cache**: Redis for caching transcript responses (e.g., 24 h TTL).
+- **Store**: PostgreSQL to persist metadata and transcript JSON.
 
-```bash
-# development
-$ pnpm run start
+---
 
-# watch mode
-$ pnpm run start:dev
+## 2. Prerequisites
 
-# production mode
-$ pnpm run start:prod
-```
+1. **Google Cloud Project**
+   - Enable **YouTube Data API v3**
+   - (Optional) Enable **Speech-to-Text API**
+2. **Authentication Credentials**
+   - OAuth 2.0 client for caption downloads (`youtube.force-ssl` scope).
+   - API key or service account for captions listing.
+3. **Technology Stack**
+   - Node.js + TypeScript (NestJS recommended).
+   - Redis for cache, PostgreSQL for storage.
+   - Docker for containerization.
 
-## Run tests
+---
 
-```bash
-# unit tests
-$ pnpm run test
+## 3. Step-by-Step Implementation
 
-# e2e tests
-$ pnpm run test:e2e
+### 3.1 Project Setup & Configuration
 
-# test coverage
-$ pnpm run test:cov
-```
+- Scaffold a NestJS or Express app with TypeScript.
+- Manage secrets via environment variables or Vault.
+- Define OpenAPI (Swagger) schema for endpoints.
 
-## Deployment
+### 3.2 Fetching Captions
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+1. **List Available Tracks**
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+   ```http
+   GET https://www.googleapis.com/youtube/v3/captions
+     ?part=snippet
+     &videoId={VIDEO_ID}
+     &key={API_KEY}
+   ```
 
-```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
-```
+   - Retrieves caption IDs and languages.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+2. **Download a Track**
 
-## Resources
+   ```http
+   GET https://www.googleapis.com/youtube/v3/captions/{CAPTION_ID}
+     ?tfmt=vtt
+   Authorization: Bearer {OAUTH_TOKEN}
+   ```
 
-Check out a few resources that may come in handy when working with NestJS:
+   - Returns WebVTT (or SRT) content. Parse into segments:
+     ```json
+     [{ "start": 12.34, "duration": 4.56, "text": "…" }]
+     ```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+3. **Fallback: Automated Transcription**
 
-## Support
+- If no captions exist, download audio (via `youtube-dl`) and send to Speech-to-Text API.
+- Trade-off: higher cost and latency but ensures coverage.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### 3.3 Playlist Handling
 
-## Stay in touch
+1. **List Playlist Videos**
+   ```http
+   GET https://www.googleapis.com/youtube/v3/playlistItems
+     ?part=contentDetails
+     &playlistId={PLAYLIST_ID}
+     &maxResults=50
+     &key={API_KEY}
+   ```
+2. **Process Each Video**
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+- Iterate through video IDs, applying the captions workflow.
+- Use concurrency control and exponential backoff to manage quotas.
 
-## License
+### 3.4 Caching & Persistence
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **Redis**: Cache full transcript JSON per `videoId`.
+- **PostgreSQL**: Store `{ videoId, language, fetchedAt, transcript }` for audit and quick lookup.
+
+---
+
+## 4. Security & Best Practices
+
+- **SOLID / DRY**: Separate API controllers, service logic, caching, and storage layers.
+- **KISS / YAGNI**: Begin with caption-based transcription; add STT only if needed.
+- **Rate Limiting**: Protect against abuse and quota overruns.
+- **Input Validation**: Ensure IDs match `^[A-Za-z0-9_-]{11,}$`.
+- **Error Handling**: Gracefully handle 404, 403, and network errors.
+- **Secrets Management**: Keep credentials out of code.
+
+---
+
+## 5. Testing & CI/CD
+
+- **Unit Tests**: Mock YouTube API responses.
+- **Integration Tests**: Use a test YouTube account with known videos.
+- **E2E Tests**: Validate full pipeline including optional STT fallback.
+- **CI Pipeline**: Linting, type checks, tests, and automated deploy (e.g., GitHub Actions).
+
+---
+
+## 6. Deployment & Scaling
+
+- **Containerization**: Docker images deployed on Kubernetes or Cloud Run.
+- **Observability**:
+  - Structured logging (JSON).
+  - Metrics (latency, error rates) in Prometheus/Grafana.
+  - Alerts on error thresholds or quota issues.
+- **Horizontal Scaling**: Stateless API pods; message queue for batch playlist jobs.
+
+---
+
+## 7. Future Enhancements
+
+- **Multi-language Transcripts**: Support `tlang` parameter to translate captions.
+- **Speaker Diarization**: Leverage speech‐to‐text speaker labels.
+- **User-Supplied OAuth**: Allow private-video access with user tokens.
+- **Webhooks**: Notify clients when long-running jobs finish.

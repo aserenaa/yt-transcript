@@ -17,7 +17,10 @@ export default antfu({
     'no-console': ['warn'],
     'antfu/no-top-level-await': ['off'],
     'node/prefer-global/process': ['off'],
-    'node/no-process-env': ['error'],
+    '@typescript-eslint/consistent-type-imports': [
+      'error',
+      { disallowTypeAnnotations: true, prefer: 'no-type-imports' },
+    ],
     'perfectionist/sort-imports': ['error', {
       tsconfigRootDir: '.',
     }],
