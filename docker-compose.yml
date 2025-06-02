@@ -1,0 +1,30 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      no_cache: true
+    container_name: yt-transcript-api
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CACHE_TTL=3600
+    ports:
+      - '3000:3000'
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: yt-transcript-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
