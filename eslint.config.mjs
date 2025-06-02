@@ -9,7 +9,7 @@ export default antfu({
     semi: true,
     quotes: 'single',
   },
-  ignores: ['.pnpm-store/*'],
+  ignores: ['.pnpm-store/*', 'Dockerfile', 'docker-compose.yml'],
 }, {
   rules: {
     'ts/no-redeclare': 'off',
