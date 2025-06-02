@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { AxiosInstance } from 'axios';
 
 import { TranscriptNotFoundException, TranscriptParseException } from '../common/exceptions/transcript.exception';
@@ -7,13 +7,13 @@ import { createYouTubeAxiosInstance } from './youtube-http.client';
 import { extractInitialPlayerResponse } from './youtube-parser.utils';
 
 @Injectable()
-export class YoutubeTranscriptService {
+export class YoutubeTranscriptService implements OnModuleInit {
   private readonly logger = new Logger(YoutubeTranscriptService.name);
-  private readonly axios: AxiosInstance;
+  private axios: AxiosInstance;
 
-  constructor() {
+  async onModuleInit() {
     const proxyUrl = process.env.HTTP_PROXY || process.env.YOUTUBE_PROXY_URL;
-    this.axios = createYouTubeAxiosInstance(proxyUrl);
+    this.axios = await createYouTubeAxiosInstance(proxyUrl);
   }
 
   /**

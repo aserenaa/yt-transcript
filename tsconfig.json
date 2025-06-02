@@ -5,7 +5,8 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "baseUrl": "./",
-    "module": "commonjs",
+    "module": "CommonJS",
+    "moduleResolution": "node",
     "strictBindCallApply": true,
     "strictNullChecks": true,
     "noFallthroughCasesInSwitch": true,
@@ -15,6 +16,7 @@
     "removeComments": true,
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true
   }
